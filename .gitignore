@@ -1,6 +1,7 @@
 frames/
 Pipfile
 *.mov
+.trash
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
