@@ -131,3 +131,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# videos
+Dataset/tears_of_steels_1080p.mov
+Dataset/v_ApplyEyeMakeup_g01_c01.avi
+Dataset/v_BabyCrawling_g01_c01.avi
