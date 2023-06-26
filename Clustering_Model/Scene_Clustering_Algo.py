@@ -98,3 +98,7 @@ def get_optimal_sequence_addition_cost(D_matrix, scenes_num):
         boundary_frame_index[k] = index_boundary_matrix[int(the_prev + 1), scenes_num - k - 1]
         the_prev = boundary_frame_index[k]
     return boundary_frame_index
+
+
+def get_optimal_sequence_norm_cost(D_matrix, scenes_num):
+    return 
