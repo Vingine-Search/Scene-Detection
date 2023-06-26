@@ -1,6 +1,7 @@
 import tensorflow as tf
-
-
+import cv2
+import os
+from utils import *
 def DeepFeaturesExtractor():
     inputs = tf.keras.layers.Input((299, 299, 3))
     xcp_preprocessed_inputs = tf.keras.applications.xception.preprocess_input(inputs)
@@ -15,8 +16,6 @@ def DeepFeaturesExtractor():
     xcp.trainable = False
     features = tf.keras.layers.Flatten()(xcp.output)
     return tf.keras.Model(inputs, features)
-
-
 def get_deep_features_for_key_frames(keyframe_files: list):
     """Returns feature vectors based on `Xception` CNN network for the given list of (key) frames.
     Args:
@@ -37,17 +36,14 @@ def get_deep_features_for_key_frames(keyframe_files: list):
         image_generator, output_shapes=image_dimensions, output_types=(tf.float32)).batch(1)
     return xcp_feat_ext.predict(dataset)
 
-def test_feat_ext():
-    # NOTE1: The norm used here might not be the distance equation used in the OSG paper.
-    # NOTE2: The distance between animals of different breeds are as big as the distance between different animals,
-    #        (e.g. a Rottweiler and a German Shepherd are as distant as a Rottweiler and a Tabby cat).
-    #        This might not be an issue since changes in the characters of the scenes (and their breeds) should indicate
-    #        a change in the scene. Breed here is just an example of how specific the Xception model is.
-    import numpy as np
-    images = ['cat1.jpg', 'cat2.jpg', 'dog1.jpg', 'dog2.jpg', 'shark.jpg']
-    ret = get_deep_features_for_key_frames(images)
-    for one in range(len(images)):
-        for two in range(one + 1, len(images)):
-            print(images[one], images[two], np.linalg.norm(ret[one] - ret[two]))
+output_dir_shot_boundries = "../Dataset/shot_boundary"
+images = []
 
-test_feat_ext()
+
+for filename in os.listdir(output_dir_shot_boundries):
+    if filename.endswith('.jpg') or filename.endswith('.png'):
+        image = cv2.imread(os.path.join(output_dir_shot_boundries, filename))
+        images.append(image)
+ret = get_deep_features_for_key_frames(images)
+distance_matrix = cosine_dist(ret)
+D_sum = get_optimal_sequence_add2(distance_matrix,len(ret))
