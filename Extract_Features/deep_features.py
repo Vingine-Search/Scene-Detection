@@ -39,7 +39,6 @@ def get_deep_features_for_key_frames(keyframe_files: list):
 output_dir_shot_boundries = "../Dataset/shot_boundary"
 images = []
 
-
 for filename in os.listdir(output_dir_shot_boundries):
     if filename.endswith('.jpg') or filename.endswith('.png'):
         image = cv2.imread(os.path.join(output_dir_shot_boundries, filename))

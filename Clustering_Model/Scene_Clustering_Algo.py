@@ -1,11 +1,12 @@
 # imports
+from math import ceil
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy import sparse
 from operator import itemgetter
 import cv2
 import numpy as np
-
+from typing import Set
 from dataclasses import dataclass,fields
 from utils import *
 from typing import List, Tuple
@@ -98,7 +99,90 @@ def get_optimal_sequence_addition_cost(D_matrix, scenes_num):
         boundary_frame_index[k] = index_boundary_matrix[int(the_prev + 1), scenes_num - k - 1]
         the_prev = boundary_frame_index[k]
     return boundary_frame_index
+"""
+desc   :get_all_possible_sums : this function try to get all possible sums for the area between the shot index from
+        0 -->  n-1 it is an recursive function 
+params : 1- e_index_of_big_area: the index at the end of the area to be devided 
+         2- num_small_areas: the number of scenes that the big area will be devided to 
+return : Set of sums of the areas devided 
+"""
+
+def  get_all_possible_sums(e_index_of_big_area,num_small_areas) ->Set[int]:
+    if num_small_areas  == 0:
+        return {0}
+    if num_small_areas  == 1:
+        return {e_index_of_big_area**2}
+    if e_index_of_big_area < num_small_areas:
+        return set()
+    
+    possible_sums = set()
+    for i in range(ceil(e_index_of_big_area/2)):
+        area_i = (i+1)**2
+        '''
+        try all possible sums  division in the rest of the matrix from i to e_index_of_big_area
+        '''
+        for remain_s_area  in get_all_possible_sums(e_index_of_big_area-i-1,num_small_areas-1):
+            possible_sums.add(area_i+remain_s_area)
+    return possible_sums
 
 
 def get_optimal_sequence_norm_cost(D_matrix, scenes_num):
-    return 
+    shots_num = D_matrix.shape[0]
+    if shots_num < 1 or scenes_num < 1 or shots_num != D_matrix.shape[1]:
+        print("Error: There is an error in shots or scenes size")
+        return []
+    # check if the size of scenes < shots return shot boundaries 
+    if scenes_num > shots_num:
+        return np.arrange(1, shots_num + 1)
+    if scenes_num == 1:
+        return [shots_num - 1]
+    D_sum = get_internal_sums(D_matrix,shots_num)
+    '''
+    every index in the cost_matrix ,index_boundary_matrix ,area_matrix
+    '''
+    cost_matrix = {}
+    index_boundary_matrix = {}
+    area_matrix ={}
+    # initialization
+    for n in range(1, shots_num+1):
+        area_n = (shots_num-n+1 )**2
+        for remain_a in get_all_possible_sums(n-1,scenes_num-1):
+            dist_sum = np.sum(D_matrix[n-1:shots_num,n-1:shots_num])
+            index_boundary_matrix[(n,1,remain_a)] = shots_num
+            area_matrix[(n,1,remain_a)] = area_n
+            cost_matrix[(n,1,remain_a)] = dist_sum / (remain_a+dist_sum)
+          
+    # the rest of the table
+    for k in range(2, scenes_num+1):
+        #TODO: recheck  shots_num - k+1 or shots_num - k
+        for n in range(1, shots_num - k+1):
+            for remain_a in get_all_possible_sums(n-1,scenes_num-k):
+                min_cost = np.inf
+                min_index = np.inf
+                for i in range(n,shots_num-k+1):
+                    '''
+                    In this for loop we try to get the minimum cost 
+                    and its index depending on the the equation of G that 
+                    explained in the paper
+                    G(n,k,p)(i) = sum(j1=n,i)sum(j2=n,i) D(xj1, xj2) /(p+(i − n + 1)**2+area_matrix(i+1,k-1,p+(i − n + 1)**2))
+                    '''
+                    area_n_i = (i-n+1)**2
+                    a_m = area_matrix.get((i+1,k-1,remain_a+area_n_i),0)
+                    G = np.sum(D_matrix[n-1:i,n-1:i])/(remain_a+area_n_i+a_m)
+                    c_m =  cost_matrix.get((i + 1, k - 1, remain_a + area_n_i),0)
+                    cost = G + c_m
+                    if cost < min_cost:
+                        min_cost = cost
+                        min_index = i
+                cost_matrix[(n, k, remain_a)] = min_cost
+                index_boundary_matrix[(n, k, remain_a)] = min_index
+                p_r = area_matrix.get((min_index + 1, k - 1, remain_a + (min_index - n + 1) ** 2), 0)
+                area_matrix[(n, k, remain_a)] = (min_index - n + 1) ** 2 + p_r
+
+    boundary_frame_index = np.zeros(scenes_num)
+    t_r = 0
+    for k in range(1, scenes_num+1):
+        print(index_boundary_matrix[(boundary_frame_index[k-1] + 1, scenes_num- k + 1, t_r)])
+        boundary_frame_index[k] = index_boundary_matrix[(boundary_frame_index[k-1] + 1, scenes_num- k + 1, t_r)]
+        t_r = (boundary_frame_index[k]-boundary_frame_index[k-1])**2
+    return boundary_frame_index[1:]
