@@ -1,7 +1,7 @@
 import tensorflow as tf
 import cv2
 import os
-from utils import *
+from .utils import *
 def DeepFeaturesExtractor():
     inputs = tf.keras.layers.Input((299, 299, 3))
     xcp_preprocessed_inputs = tf.keras.applications.xception.preprocess_input(inputs)
@@ -36,13 +36,14 @@ def get_deep_features_for_key_frames(keyframe_files: list):
         image_generator, output_shapes=image_dimensions, output_types=(tf.float32)).batch(1)
     return xcp_feat_ext.predict(dataset)
 
-output_dir_shot_boundries = "../Dataset/shot_boundary"
-images = []
+if __name__ == "__main__":
+    output_dir_shot_boundries = "../Dataset/shot_boundary"
+    images = []
 
-for filename in os.listdir(output_dir_shot_boundries):
-    if filename.endswith('.jpg') or filename.endswith('.png'):
-        image = cv2.imread(os.path.join(output_dir_shot_boundries, filename))
-        images.append(image)
-ret = get_deep_features_for_key_frames(images)
-distance_matrix = cosine_dist(ret)
-D_sum = get_optimal_sequence_add2(distance_matrix,len(ret))
+    for filename in os.listdir(output_dir_shot_boundries):
+        if filename.endswith('.jpg') or filename.endswith('.png'):
+            image = cv2.imread(os.path.join(output_dir_shot_boundries, filename))
+            images.append(image)
+    ret = get_deep_features_for_key_frames(images)
+    distance_matrix = cosine_dist(ret)
+    D_sum = get_optimal_sequence_add2(distance_matrix,len(ret))

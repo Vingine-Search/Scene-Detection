@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from typing import Set
 from dataclasses import dataclass,fields
-from utils import *
+from .utils import *
 from typing import List, Tuple
 
 def get_distance_matrix(features_matrix):

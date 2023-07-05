@@ -4,7 +4,7 @@ import os
 import numpy as np
 import math
 from dataclasses import dataclass,fields
-from utils import *
+from .utils import *
 from typing import List, Tuple
 """
 Define classes 
