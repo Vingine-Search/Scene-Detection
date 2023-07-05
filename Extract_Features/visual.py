@@ -160,24 +160,25 @@ def avg_frames_features(frames: List[frame_data]) -> frame_data:
         setattr(avg_frame_data, attr_name, attr_value)
     return avg_frame_data
 
+
 def get_framesboundary_data(video_path="./Dataset/tears_of_steel_1080p.mov",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=60):
     boundary_frames: List[frame_data] = []
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     cap = cv2.VideoCapture(video_path)
     video_try = shot_detector()
+    # Get the frame rate.
+    fps = cap.get(cv2.CAP_PROP_FPS)
     # assert video_try.min_scene_len > sampling_rate, "The sampling rate is must be strictly less than the minimum scene length"
-    
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_data_since_last_cut = []
-    
     for frame_idx in range(0, total_frames, sampling_rate):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         ret, frame = cap.read()
         if ret:
-            output_path = os.path.join(output_dir, "frame_{:06d}.jpg".format(frame_idx))
+            print(frame_idx // fps)
+            output_path = os.path.join(output_dir, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx // fps), frame_idx))
             cv2.imwrite(output_path, frame)
-    
         shot_score, data,hist_def = process_frame(
             video_try, frame_data_since_last_cut,
             len(frame_data_since_last_cut) * sampling_rate,
@@ -190,10 +191,13 @@ def get_framesboundary_data(video_path="./Dataset/tears_of_steel_1080p.mov",outp
         if hist_def < video_try.threshold_hist:
             print(frame_idx)
             ######################## SAVE SHOT BOUNDARY IN ANOTHER FOLDER TO GET DEEP FEATURES ###################
-            # if not os.path.exists(output_dir_shot_boundries):
-            #     os.makedirs(output_dir_shot_boundries)
-            # output_path = os.path.join(output_dir_shot_boundries, "frame_{:06d}.jpg".format(frame_idx))
+            if not os.path.exists(output_dir_shot_boundries):
+                os.makedirs(output_dir_shot_boundries)
+            output_path = os.path.join(output_dir_shot_boundries, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx//fps), frame_idx))
             cv2.imwrite(output_path, frame)
-            boundary_frames.append((data,frame_idx))
+            boundary_frames.append((data,frame_idx,frame_idx//fps))
     cap.release()
     return boundary_frames
+
+
+# get_framesboundary_data()

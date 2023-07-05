@@ -10,15 +10,14 @@ from typing import Set
 from dataclasses import dataclass,fields
 from utils import *
 from typing import List, Tuple
-
 def get_distance_matrix(features_matrix):
     D_Matrix = sparse.csr_matrix(features_matrix)
     D_Matrix = cosine_similarity(D_Matrix)
     D_Matrix = 1-D_Matrix
     # D_Matrix.tolist()
     return D_Matrix
-#TODO: try eculedian  distance 
 
+#TODO: try eculedian  distance
 """
 params : 
 boundary_frames : frames classified to be boundaries thsi is list of tuples (data, frame index,hsv_hist)
@@ -126,7 +125,7 @@ def  get_all_possible_sums(e_index_of_big_area,num_small_areas) ->Set[int]:
     return possible_sums
 
 
-def get_optimal_sequence_norm_cost(D_matrix, scenes_num):
+def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
     shots_num = D_matrix.shape[0]
     if shots_num < 1 or scenes_num < 1 or shots_num != D_matrix.shape[1]:
         print("Error: There is an error in shots or scenes size")
@@ -136,7 +135,8 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num):
         return np.arrange(1, shots_num + 1)
     if scenes_num == 1:
         return [shots_num - 1]
-    D_sum = get_internal_sums(D_matrix,shots_num)
+    
+    # D_sum = get_internal_sums(D_matrix,shots_num)
     '''
     every index in the cost_matrix ,index_boundary_matrix ,area_matrix
     '''
@@ -154,7 +154,6 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num):
           
     # the rest of the table
     for k in range(2, scenes_num+1):
-        #TODO: recheck  shots_num - k+1 or shots_num - k
         for n in range(1, shots_num - k+1):
             for remain_a in get_all_possible_sums(n-1,scenes_num-k):
                 min_cost = np.inf
@@ -178,11 +177,11 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num):
                 index_boundary_matrix[(n, k, remain_a)] = min_index
                 p_r = area_matrix.get((min_index + 1, k - 1, remain_a + (min_index - n + 1) ** 2), 0)
                 area_matrix[(n, k, remain_a)] = (min_index - n + 1) ** 2 + p_r
-
-    boundary_frame_index = np.zeros(scenes_num)
+    boundary_frame_index = [0]
+    boundary_frame_second =[0]
     t_r = 0
-    for k in range(1, scenes_num+1):
-        print(index_boundary_matrix[(boundary_frame_index[k-1] + 1, scenes_num- k + 1, t_r)])
-        boundary_frame_index[k] = index_boundary_matrix[(boundary_frame_index[k-1] + 1, scenes_num- k + 1, t_r)]
-        t_r = (boundary_frame_index[k]-boundary_frame_index[k-1])**2
-    return boundary_frame_index[1:]
+    for k in range(1, scenes_num + 1):
+        boundary_frame_index.append(index_boundary_matrix[(boundary_frame_index[-1] + 1, scenes_num - k + 1, t_r)])
+        boundary_frame_second.append(boundary_frames[boundary_frame_index[k]][2])
+        t_r += (boundary_frame_index[-1] - boundary_frame_index[-2]) ** 2
+    return np.array(boundary_frame_second[1:]) - 1
