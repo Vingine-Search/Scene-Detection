@@ -385,7 +385,7 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
     t_r = 0
     for k in range(1, scenes_num + 1):
         boundary_frame_index.append(index_boundary_matrix[(boundary_frame_index[-1] + 1, scenes_num - k + 1, t_r)])
-        boundary_frame_second.append(boundary_frames[boundary_frame_index[k]][2])
+        boundary_frame_second.append(boundary_frames[boundary_frame_index[k] - 1][2])
         t_r += (boundary_frame_index[-1] - boundary_frame_index[-2]) ** 2
     return np.array(boundary_frame_second[1:]) - 1
 ########################################
