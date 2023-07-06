@@ -112,7 +112,7 @@ def get_internal_sums(D_Matrix,N):
             # as the matrix is symetric 
             D_sum[start_shot + scene_size, start_shot] = D_sum[start_shot, start_shot + scene_size]
     return D_sum
-
+#################################################################
 """
 desc   : detect_edges  
 params : 1- val : val channel from the HSV image 
@@ -135,17 +135,6 @@ def detect_edges(val: np.ndarray,kernel:int =None) -> np.ndarray:
     # TODO : Implement  Canny 
     edges = cv2.Canny(val, low, high)
     return cv2.dilate(edges,kernel)
-"""
-desc: get_HSV_feature_frame
-params : frame
-return : feature matrix with 3 histograms for H S V
-"""
-def get_HSV_feature_frame(frame):
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    hist_frame = cv2.calcHist(frame, [0, 1, 2], None, [256, 256, 256], [0, 256, 0, 256, 0, 256])
-    cv2.normalize(hist_frame, hist_frame, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
-    return hist_frame
-
 """
 desc   : calculate score for the frame to detect if it is shot boundry or not  
 params : 1- video_param
@@ -196,13 +185,16 @@ def process_frame(
     # consider any frame over the threshold a new scene, but only if
     # the minimum scene length has been reached (otherwise it is ignored).
     # NOTE: `frames_count_since_last_cut` is the actual number of frames since the last cut, i.e. not sampled every x frames.
-
     if frames_count_since_last_cut < video_param.min_scene_len:
-        return (None, video_param.last_frame,hist_def)
+        return (None,video_param.last_frame,hist_def)
+    print("process")
     ##################################################################################################
     # try use the histograme of the boundary not the avg of the frames 
-    shot_score = op(frames_since_last_cut) if frame_score >= video_param.threshold else None
+    # shot_score = op(frames_since_last_cut) if frame_score >= video_param.threshold else None
+    shot_score = frame_score if frame_score >= video_param.threshold else None
+    print(shot_score)
     return (shot_score, video_param.last_frame,hist_def)
+
 def avg_frames_features(frames: List[frame_data]) -> frame_data:
     """A reduction operation to perform (averaging) on a list of frame data.
     The reduced data would then be used as a representation of the whole shot.
@@ -215,6 +207,66 @@ def avg_frames_features(frames: List[frame_data]) -> frame_data:
         attr_value = sum(getattr(frame, attr_name) for frame in frames) / count
         setattr(avg_frame_data, attr_name, attr_value)
     return avg_frame_data
+
+import shutil
+def get_framesboundary_data(video_path="./Dataset/tears_of_steel_1080p.mov",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=30):
+    boundary_frames: List[frame_data] = []
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if os.path.exists(output_dir_shot_boundries):
+        shutil.rmtree(output_dir_shot_boundries)
+    os.makedirs(output_dir_shot_boundries)
+    cap = cv2.VideoCapture(video_path)
+    video_try = shot_detector()
+    # Get the frame rate.
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # assert video_try.min_scene_len > sampling_rate, "The sampling rate is must be strictly less than the minimum scene length"
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # get the video duration in seconds 
+    seconds = round(total_frames / fps)
+    # 2 min
+    if seconds < 120:
+        sampling_rate = 10
+    # 3 min
+    elif seconds < 180:
+        sampling_rate = 20
+    # 4 min
+    elif seconds < 240:
+        sampling_rate = 30
+    else:
+        sampling_rate = 60
+
+    frame_data_since_last_cut = []
+    for frame_idx in range(0, total_frames, sampling_rate):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        ret, frame = cap.read()
+        if ret:
+            output_path = os.path.join(output_dir, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx // fps), frame_idx))
+            cv2.imwrite(output_path, frame)
+        shot_score, data,hist_def = process_frame(
+            video_try, frame_data_since_last_cut,
+            len(frame_data_since_last_cut),
+            frame, avg_frames_features)
+        if shot_score is not None:
+            print(frame_idx)
+            output_path = os.path.join(output_dir_shot_boundries, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx//fps), frame_idx))
+            cv2.imwrite(output_path, frame)
+            # Reset the data accumulator.
+            frame_data_since_last_cut = []
+            boundary_frames.append((data,frame_idx,frame_idx//fps))
+        frame_data_since_last_cut.append(data)
+        ######################## USING HISTOGRAM ###################################
+        # if hist_def < video_try.threshold_hist:
+        #     print(frame_idx)
+        #     ######################## SAVE SHOT BOUNDARY IN ANOTHER FOLDER TO GET DEEP FEATURES ###################
+        #     if not os.path.exists(output_dir_shot_boundries):
+        #         os.makedirs(output_dir_shot_boundries)
+        #     output_path = os.path.join(output_dir_shot_boundries, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx//fps), frame_idx))
+        #     cv2.imwrite(output_path, frame)
+            # boundary_frames.append((data,frame_idx,frame_idx//fps))
+
+    cap.release()
+    return boundary_frames
 ##############################################
 def  get_all_possible_sums(e_index_of_big_area,num_small_areas) ->Set[int]:
     if num_small_areas  == 0:
@@ -223,7 +275,6 @@ def  get_all_possible_sums(e_index_of_big_area,num_small_areas) ->Set[int]:
         return {e_index_of_big_area**2}
     if e_index_of_big_area < num_small_areas:
         return set()
-    
     possible_sums = set()
     for i in range(ceil(e_index_of_big_area/2)):
         area_i = (i+1)**2
@@ -275,9 +326,11 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
         return []
     # check if the size of scenes < shots return shot boundaries 
     if scenes_num > shots_num:
-        return np.arrange(1, shots_num + 1)
+        return [boundary_frames[i][2] for i in range(1,shots_num + 1)]
+        # return np.arrange(1, shots_num + 1)
     if scenes_num == 1:
-        return [shots_num - 1]
+        return [boundary_frames[-1][2]] 
+        # return [shots_num - 1]
     
     # D_sum = get_internal_sums(D_matrix,shots_num)
     '''
@@ -329,43 +382,6 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
         t_r += (boundary_frame_index[-1] - boundary_frame_index[-2]) ** 2
     return np.array(boundary_frame_second[1:]) - 1
 ########################################
-def get_framesboundary_data(video_path="./Dataset/tears_of_steel_1080p.mov",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=60):
-    boundary_frames: List[frame_data] = []
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    cap = cv2.VideoCapture(video_path)
-    video_try = shot_detector()
-    # Get the frame rate.
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    # assert video_try.min_scene_len > sampling_rate, "The sampling rate is must be strictly less than the minimum scene length"
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    frame_data_since_last_cut = []
-    for frame_idx in range(0, total_frames, sampling_rate):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-        ret, frame = cap.read()
-        if ret:
-            print(frame_idx // fps)
-            output_path = os.path.join(output_dir, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx // fps), frame_idx))
-            cv2.imwrite(output_path, frame)
-        shot_score, data,hist_def = process_frame(
-            video_try, frame_data_since_last_cut,
-            len(frame_data_since_last_cut) * sampling_rate,
-            frame, avg_frames_features)
-        # if shot_score is not None:
-        #     print(frame_idx)
-        #     # Reset the data accumulator.
-        #     frame_data_since_last_cut = []
-        # frame_data_since_last_cut.append(data)
-        if hist_def < video_try.threshold_hist:
-            print(frame_idx)
-            ######################## SAVE SHOT BOUNDARY IN ANOTHER FOLDER TO GET DEEP FEATURES ###################
-            if not os.path.exists(output_dir_shot_boundries):
-                os.makedirs(output_dir_shot_boundries)
-            output_path = os.path.join(output_dir_shot_boundries, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx//fps), frame_idx))
-            cv2.imwrite(output_path, frame)
-            boundary_frames.append((data,frame_idx,frame_idx//fps))
-    cap.release()
-    return boundary_frames
 def get_boundary_deep_features_and_normcost(boundary_frames,output_shot_dir='./Dataset/shot_boundary',scenes_num = 5):
     frames_dir = []
     if not os.path.exists(output_shot_dir):
@@ -378,14 +394,11 @@ def get_boundary_deep_features_and_normcost(boundary_frames,output_shot_dir='./D
     boundary_frame_seconds = get_optimal_sequence_norm_cost(distance_matrix,scenes_num,boundary_frames)
     return boundary_frame_seconds
 
-
 def get_scene_seg(video):
     boundary_frames = get_framesboundary_data(video,"./Dataset/frames","./Dataset/shot_boundary",60)
     boundary_frame_seconds = get_boundary_deep_features_and_normcost(boundary_frames,'./Dataset/shot_boundary',5)
     return boundary_frame_seconds
 
-
 boundary_frame_seconds = get_scene_seg("./Dataset/tears_of_steel_1080p.mov")
 print(boundary_frame_seconds)
-
 

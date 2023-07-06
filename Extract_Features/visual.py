@@ -4,8 +4,10 @@ import os
 import numpy as np
 import math
 from dataclasses import dataclass,fields
-from .utils import *
+from utils import *
 from typing import List, Tuple
+import datetime
+import shutil
 """
 Define classes 
 """
@@ -31,9 +33,9 @@ class frame_data:
 features_weight_d = features_weight()
 @dataclass
 class shot_detector:
-    threshold: float = 27.0
+    threshold: float = 20.0
     threshold_hist: float = 0.6
-    min_scene_len: int = 15
+    min_scene_len: int = 10
     weights: 'features_weight' = features_weight_d
     kernel_size_edges: Optional[int] = None
     last_frame: Optional[frame_data] = None
@@ -140,13 +142,16 @@ def process_frame(
     # consider any frame over the threshold a new scene, but only if
     # the minimum scene length has been reached (otherwise it is ignored).
     # NOTE: `frames_count_since_last_cut` is the actual number of frames since the last cut, i.e. not sampled every x frames.
-
     if frames_count_since_last_cut < video_param.min_scene_len:
-        return (None, video_param.last_frame,hist_def)
+        return (None,video_param.last_frame,hist_def)
+    print("process")
     ##################################################################################################
     # try use the histograme of the boundary not the avg of the frames 
-    shot_score = op(frames_since_last_cut) if frame_score >= video_param.threshold else None
+    # shot_score = op(frames_since_last_cut) if frame_score >= video_param.threshold else None
+    shot_score = frame_score if frame_score >= video_param.threshold else None
+    print(shot_score)
     return (shot_score, video_param.last_frame,hist_def)
+
 def avg_frames_features(frames: List[frame_data]) -> frame_data:
     """A reduction operation to perform (averaging) on a list of frame data.
     The reduced data would then be used as a representation of the whole shot.
@@ -160,44 +165,64 @@ def avg_frames_features(frames: List[frame_data]) -> frame_data:
         setattr(avg_frame_data, attr_name, attr_value)
     return avg_frame_data
 
-
-def get_framesboundary_data(video_path="./Dataset/tears_of_steel_1080p.mov",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=60):
+def get_framesboundary_data(video_path="./Dataset/video1.mp4",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=30):
     boundary_frames: List[frame_data] = []
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+    if os.path.exists(output_dir_shot_boundries):
+        shutil.rmtree(output_dir_shot_boundries)
+    os.makedirs(output_dir_shot_boundries)
     cap = cv2.VideoCapture(video_path)
     video_try = shot_detector()
     # Get the frame rate.
     fps = cap.get(cv2.CAP_PROP_FPS)
     # assert video_try.min_scene_len > sampling_rate, "The sampling rate is must be strictly less than the minimum scene length"
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # get the video duration in seconds 
+    seconds = round(total_frames / fps)
+    # 2 min
+    if seconds < 120:
+        sampling_rate = 10
+    # 3 min
+    elif seconds < 180:
+        sampling_rate = 20
+    # 4 min
+    elif seconds < 240:
+        sampling_rate = 30
+    else:
+        sampling_rate = 60
+
     frame_data_since_last_cut = []
     for frame_idx in range(0, total_frames, sampling_rate):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         ret, frame = cap.read()
         if ret:
-            print(frame_idx // fps)
             output_path = os.path.join(output_dir, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx // fps), frame_idx))
             cv2.imwrite(output_path, frame)
         shot_score, data,hist_def = process_frame(
             video_try, frame_data_since_last_cut,
-            len(frame_data_since_last_cut) * sampling_rate,
+            len(frame_data_since_last_cut),
             frame, avg_frames_features)
-        # if shot_score is not None:
-        #     print(frame_idx)
-        #     # Reset the data accumulator.
-        #     frame_data_since_last_cut = []
-        # frame_data_since_last_cut.append(data)
-        if hist_def < video_try.threshold_hist:
+        if shot_score is not None:
             print(frame_idx)
-            ######################## SAVE SHOT BOUNDARY IN ANOTHER FOLDER TO GET DEEP FEATURES ###################
-            if not os.path.exists(output_dir_shot_boundries):
-                os.makedirs(output_dir_shot_boundries)
             output_path = os.path.join(output_dir_shot_boundries, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx//fps), frame_idx))
             cv2.imwrite(output_path, frame)
+            # Reset the data accumulator.
+            frame_data_since_last_cut = []
             boundary_frames.append((data,frame_idx,frame_idx//fps))
+        frame_data_since_last_cut.append(data)
+        ######################## USING HISTOGRAM ###################################
+        # if hist_def < video_try.threshold_hist:
+        #     print(frame_idx)
+        #     ######################## SAVE SHOT BOUNDARY IN ANOTHER FOLDER TO GET DEEP FEATURES ###################
+        #     if not os.path.exists(output_dir_shot_boundries):
+        #         os.makedirs(output_dir_shot_boundries)
+        #     output_path = os.path.join(output_dir_shot_boundries, "frame_{:02d}_{:06d}.jpg".format(int(frame_idx//fps), frame_idx))
+        #     cv2.imwrite(output_path, frame)
+            # boundary_frames.append((data,frame_idx,frame_idx//fps))
+
     cap.release()
     return boundary_frames
 
 
-# get_framesboundary_data()
+get_framesboundary_data()
