@@ -404,8 +404,10 @@ def get_boundary_deep_features_and_normcost(boundary_frames,output_shot_dir='./D
 def get_scene_seg(video):
     boundary_frames = get_framesboundary_data(video,"./Dataset/frames","./Dataset/shot_boundary",60)
     boundary_frame_seconds = get_boundary_deep_features_and_normcost(boundary_frames,'./Dataset/shot_boundary',5)
+    os.system("rm -rf Dataset")
     return boundary_frame_seconds
 
-boundary_frame_seconds = get_scene_seg("./Dataset/tears_of_steel_1080p.mov")
-print(boundary_frame_seconds)
+if __name__ == "__main__":
+    boundary_frame_seconds = get_scene_seg("./Dataset/tears_of_steel_1080p.mov")
+    print(boundary_frame_seconds)
 
