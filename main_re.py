@@ -135,6 +135,13 @@ def detect_edges(val: np.ndarray,kernel:int =None) -> np.ndarray:
     # TODO : Implement  Canny 
     edges = cv2.Canny(val, low, high)
     return cv2.dilate(edges,kernel)
+
+
+def get_HSV_feature_frame(frame):
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    hist_frame = cv2.calcHist(frame, [0, 1, 2], None, [256, 256, 256], [0, 256, 0, 256, 0, 256])
+    cv2.normalize(hist_frame, hist_frame, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    return hist_frame
 """
 desc   : calculate score for the frame to detect if it is shot boundry or not  
 params : 1- video_param
