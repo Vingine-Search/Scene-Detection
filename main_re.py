@@ -402,9 +402,12 @@ def get_boundary_deep_features_and_normcost(boundary_frames,output_shot_dir='./D
     return boundary_frame_seconds
 
 def get_scene_seg(video):
-    boundary_frames = get_framesboundary_data(video,"./Dataset/frames","./Dataset/shot_boundary",60)
-    boundary_frame_seconds = get_boundary_deep_features_and_normcost(boundary_frames,'./Dataset/shot_boundary',5)
-    os.system("rm -rf Dataset")
+    dataset_dir = os.path.join(os.path.dirname(video), "Dataset")
+    frames_dir = os.path.join(dataset_dir, "frames")
+    shots_dir = os.path.join(dataset_dir, "shot_boundary")
+    boundary_frames = get_framesboundary_data(video,frames_dir,shots_dir,60)
+    boundary_frame_seconds = get_boundary_deep_features_and_normcost(boundary_frames,shots_dir,5)
+    os.system(f"rm -rf {dataset_dir}")
     return boundary_frame_seconds
 
 if __name__ == "__main__":
