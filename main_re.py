@@ -12,7 +12,7 @@ import cv2
 import os
 import numpy as np
 import math
-from dataclasses import dataclass,fields
+from dataclasses import dataclass,fields,field
 # from utils import *
 from typing import List, Tuple
 """
@@ -43,7 +43,7 @@ class shot_detector:
     threshold: float = 27.0
     threshold_hist: float = 0.6
     min_scene_len: int = 15
-    weights: 'features_weight' = features_weight_d
+    weights: 'features_weight' = field(default_factory=features_weight)
     kernel_size_edges: Optional[int] = None
     last_frame: Optional[frame_data] = None
 
@@ -275,7 +275,7 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
         return []
     # check if the size of scenes < shots return shot boundaries 
     if scenes_num > shots_num:
-        return np.arrange(1, shots_num + 1)
+        return np.arange(1, shots_num + 1)
     if scenes_num == 1:
         return [shots_num - 1]
     
