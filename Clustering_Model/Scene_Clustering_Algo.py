@@ -91,9 +91,9 @@ def get_optimal_sequence_addition_cost(D_matrix, scenes_num):
             index_boundary_matrix[n, k] = np.argmin(temp)
             cost_matrix[n, k] = temp[int(index_boundary_matrix[n, k])]
             index_boundary_matrix[n, k] = index_boundary_matrix[n, k] + n
+            
     boundary_frame_index = np.zeros(scenes_num)
     the_prev = -1
-
     for k in range(1, scenes_num+1):
         boundary_frame_index[k] = index_boundary_matrix[int(the_prev + 1), scenes_num - k - 1]
         the_prev = boundary_frame_index[k]
@@ -131,11 +131,10 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
         print("Error: There is an error in shots or scenes size")
         return []
     # check if the size of scenes < shots return shot boundaries 
-    if scenes_num > shots_num:
-        return np.arrange(1, shots_num + 1)
+    if scenes_num >= shots_num:
+        return np.arange(1, shots_num + 1)
     if scenes_num == 1:
         return [shots_num - 1]
-    
     # D_sum = get_internal_sums(D_matrix,shots_num)
     '''
     every index in the cost_matrix ,index_boundary_matrix ,area_matrix
@@ -151,7 +150,6 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
             index_boundary_matrix[(n,1,remain_a)] = shots_num
             area_matrix[(n,1,remain_a)] = area_n
             cost_matrix[(n,1,remain_a)] = dist_sum / (remain_a+dist_sum)
-          
     # the rest of the table
     for k in range(2, scenes_num+1):
         for n in range(1, shots_num - k+1):
@@ -180,6 +178,7 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
     boundary_frame_index = [0]
     boundary_frame_second =[0]
     t_r = 0
+
     for k in range(1, scenes_num + 1):
         boundary_frame_index.append(index_boundary_matrix[(boundary_frame_index[-1] + 1, scenes_num - k + 1, t_r)])
         boundary_frame_second.append(boundary_frames[boundary_frame_index[k]][2])

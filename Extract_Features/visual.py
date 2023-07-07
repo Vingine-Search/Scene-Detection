@@ -165,7 +165,7 @@ def avg_frames_features(frames: List[frame_data]) -> frame_data:
         setattr(avg_frame_data, attr_name, attr_value)
     return avg_frame_data
 
-def get_framesboundary_data(video_path="./Dataset/video1.mp4",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=30):
+def get_framesboundary_data(video_path="./Dataset/ed_1024.avi",output_dir="./Dataset/frames",output_dir_shot_boundries = "./Dataset/shot_boundary",sampling_rate=30):
     boundary_frames: List[frame_data] = []
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
