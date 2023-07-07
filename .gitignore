@@ -1,6 +1,7 @@
 frames/
 Pipfile
 *.mov
+*.mp4
 .trash
 
 # Byte-compiled / optimized / DLL files
