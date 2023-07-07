@@ -332,8 +332,8 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
         print("Error: There is an error in shots or scenes size")
         return []
     # check if the size of scenes < shots return shot boundaries 
-    if scenes_num > shots_num:
-        return [boundary_frames[i][2] for i in range(1,shots_num + 1)]
+    if scenes_num >= shots_num:
+        return [boundary_frames[i][2] for i in range(1,shots_num)]
         # return np.arrange(1, shots_num + 1)
     if scenes_num == 1:
         return [boundary_frames[-1][2]] 
@@ -353,7 +353,7 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
             dist_sum = np.sum(D_matrix[n-1:shots_num,n-1:shots_num])
             index_boundary_matrix[(n,1,remain_a)] = shots_num
             area_matrix[(n,1,remain_a)] = area_n
-            cost_matrix[(n,1,remain_a)] = dist_sum / (remain_a+dist_sum)
+            cost_matrix[(n,1,remain_a)] = dist_sum / (remain_a+area_n)
           
     # the rest of the table
     for k in range(2, scenes_num+1):
