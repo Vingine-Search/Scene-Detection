@@ -331,8 +331,8 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
         print("Error: There is an error in shots or scenes size")
         return []
     # check if the size of scenes < shots return shot boundaries 
-    if scenes_num > shots_num:
-        return [boundary_frames[i][2] for i in range(1,shots_num + 1)]
+    if scenes_num >= shots_num:
+        return [boundary_frames[i][2] for i in range(1,shots_num)]
         # return np.arrange(1, shots_num + 1)
     if scenes_num == 1:
         return [boundary_frames[-1][2]] 
@@ -352,7 +352,7 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
             dist_sum = np.sum(D_matrix[n-1:shots_num,n-1:shots_num])
             index_boundary_matrix[(n,1,remain_a)] = shots_num
             area_matrix[(n,1,remain_a)] = area_n
-            cost_matrix[(n,1,remain_a)] = dist_sum / (remain_a+dist_sum)
+            cost_matrix[(n,1,remain_a)] = dist_sum / (remain_a+area_n)
           
     # the rest of the table
     for k in range(2, scenes_num+1):
@@ -384,7 +384,7 @@ def get_optimal_sequence_norm_cost(D_matrix, scenes_num,boundary_frames):
     t_r = 0
     for k in range(1, scenes_num + 1):
         boundary_frame_index.append(index_boundary_matrix[(boundary_frame_index[-1] + 1, scenes_num - k + 1, t_r)])
-        boundary_frame_second.append(boundary_frames[boundary_frame_index[k]][2])
+        boundary_frame_second.append(boundary_frames[boundary_frame_index[k] - 1][2])
         t_r += (boundary_frame_index[-1] - boundary_frame_index[-2]) ** 2
     return np.array(boundary_frame_second[1:]) - 1
 ########################################
@@ -401,10 +401,15 @@ def get_boundary_deep_features_and_normcost(boundary_frames,output_shot_dir='./D
     return boundary_frame_seconds
 
 def get_scene_seg(video):
-    boundary_frames = get_framesboundary_data(video,"./Dataset/frames","./Dataset/shot_boundary",60)
-    boundary_frame_seconds = get_boundary_deep_features_and_normcost(boundary_frames,'./Dataset/shot_boundary',5)
+    dataset_dir = os.path.join(os.path.dirname(video), "Dataset")
+    frames_dir = os.path.join(dataset_dir, "frames")
+    shots_dir = os.path.join(dataset_dir, "shot_boundary")
+    boundary_frames = get_framesboundary_data(video,frames_dir,shots_dir,60)
+    boundary_frame_seconds = get_boundary_deep_features_and_normcost(boundary_frames,shots_dir,5)
+    os.system(f"rm -rf {dataset_dir}")
     return boundary_frame_seconds
 
-boundary_frame_seconds = get_scene_seg("./Dataset/tears_of_steel_1080p.mov")
-print(boundary_frame_seconds)
+if __name__ == "__main__":
+    boundary_frame_seconds = get_scene_seg("./Dataset/tears_of_steel_1080p.mov")
+    print(boundary_frame_seconds)
 
